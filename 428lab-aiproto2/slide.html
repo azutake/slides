@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LLMトークナイザー性能改善研究 (Polished) - 15min Talk</title>
+    <title>LLMトークナイザー性能改善研究</title>
     <style>
         :root {
             --primary-color: #2563eb;
@@ -235,17 +235,20 @@
             /* Flex layout変更に伴い、margin-top: autoで下に押し下げる */
             margin-top: auto;
             border-top: 2px dashed #cbd5e1;
-            padding-top: 1rem;
+            padding-top: 1.5rem;
             background-color: #fffbeb;
-            padding: 1rem;
+            padding: 1.5rem 2rem;
             border-radius: 8px;
-            font-size: 1rem;
+            font-size: 1.4rem;
+            line-height: 1.8;
             color: #78350f;
-            max-height: 15vh;
+            max-height: 25vh;
             overflow-y: auto;
             flex-shrink: 0;
+            display: none;
         }
-        .speaker-notes strong { color: #d97706; }
+        .speaker-notes.visible { display: block; }
+        .speaker-notes strong { color: #d97706; font-size: 1.5rem; }
 
         /* Two Col */
         .two-col {
@@ -340,15 +343,45 @@
         <h1>LLMトークナイザー<br>性能改善研究</h1>
         <p class="subtitle" style="font-size:1.8rem; color:#64748b;">PFNの知見から学ぶ「予測しやすい語彙」と<br>形態素解析フリーへの挑戦</p>
         <div style="margin-top: 3rem;">
-            <p><strong>Presenter:</strong> Azutake</p>
-            <p><strong>Date:</strong> 2026/01/15</p>
+            <p>azutake・2026/01/15</p>
         </div>
         
         <div class="speaker-notes">
             <strong>【導入: 1分】</strong><br>
-            ・本日はトークナイザーの研究について話します。<br>
-            ・LLMの性能はモデルサイズだけでなく、「どう言葉を区切るか」に大きく依存します。<br>
-            ・PFNの事例、Meta BLTの課題、そして独自の解決策(CLT)について詳説します。
+            ・今回は「LLMトークナイザー性能改善研究」というテーマで話していこうと思います。<br>
+            ・LLMの性能はモデルサイズだけでなく、「どう言葉を区切るか」に大きく依存しており、ここを改善するだけでも性能の飛躍的向上が見込めます。<br>
+            ・PFNの事例や、Meta BLTの課題、そしてこの研究のコアである、独自の解決策について話していきます。
+        </div>
+    </div>
+
+    <div class="slide">
+        <div class="slide-header">
+            <h2>echo $(whoami)</h2>
+            <span class="page-num">01 / 15</span>
+        </div>
+
+        <div style="flex: 1; position: relative;">
+            <div style="font-size: 1.6rem;">
+                <h3>azutake</h3>
+                <p>X: <a href="https://x.com/azutake_dev">@azutake_dev</a> / Bluesky: <a href="https://bsky.app/profile/@azutake.nicovideo.dev">@azutake.nicovideo.dev</a></p>
+                <p>ADHD持ちのコンサータが欠かせないヤク中。</p>
+                <p>株式会社ドワンゴ所属（課金システム周り 兼 カスタムキャスト企画開発）<br>
+                <span style="font-size: 1.2rem; color: #64748b;">※業務で研究開発は行っていません</span></p>
+
+                <h3>個人活動</h3>
+                <ul style="margin-top: 0.5rem;">
+                    <li>オンプレ(自宅)に構築したk8sやゲームサーバーなどの運用</li>
+                    <li>リバースエンジニアリング</li>
+                    <li>(LLMに限らず)研究開発</li>
+                </ul>
+            </div>
+            <div class="speaker-notes">
+                <strong>【自己紹介: 1分】</strong><br>
+                ・まずは簡単な自己紹介で、アズタケと申します。普段はドワンゴで課金システムの開発をしていますが、<br>
+                ・個人でLLMの研究開発やサーバー運用などを行っています。<br>
+                ・あとは面白そうだと思ったことは何でも飛びつく性格なので、割と何でも手を出してたりします。
+            </div>
+            <img src="assets/IMG_0718.PNG" alt="azutake avatar" style="position: absolute; right: -5rem; bottom: -3rem; height: 85vh; pointer-events: none;">
         </div>
     </div>
 
@@ -356,7 +389,7 @@
     <div class="slide">
         <div class="slide-header">
             <h2>1. 背景：BPEトークナイザーの課題</h2>
-            <span class="page-num">01 / 14</span>
+            <span class="page-num">02 / 15</span>
         </div>
         
         <h3>ChatGPTやGeminiの現状</h3>
@@ -389,7 +422,9 @@
             <strong>【BPEの課題: 2分】</strong><br>
             ・一般的に使われているBPEですが、日本語には不利な側面があります。<br>
             ・英語は1単語1トークンで綺麗に収まりますが、日本語はデータ量の差で細切れになりがちです。<br>
-            ・これはAPIコストや生成速度に直結する重要な問題です。
+            ・これはAPIコストや生成速度に直結する重要な問題です。<br>
+            ・例えば、LLMが日々進化している今でも、プロンプトにはよく英語が用いられています。これは、英語の方が効率的にトークン化できるからです。<br>
+            ・でも、実際には英語には無いニュアンスがあるので、日本語でも効率的に扱いたいというニーズがあります。
         </div>
     </div>
 
@@ -397,7 +432,7 @@
     <div class="slide">
         <div class="slide-header">
             <h2>2. 効率と性能のトレードオフ</h2>
-            <span class="page-num">02 / 14</span>
+            <span class="page-num">03 / 15</span>
         </div>
         
         <h3>「トークン効率を上げれば良い」のか？</h3>
@@ -420,7 +455,8 @@
             <strong>【圧縮のジレンマ: 2分】</strong><br>
             ・じゃあ無理やりくっつければいいかというと、そうではありません。<br>
             ・「美味しい」と「美味い」を別々のIDにすると、共通する概念が失われます。<br>
-            ・効率と理解のしやすさはトレードオフの関係にあります。
+            ・LLMは、「言葉」をそのまま理解しているわけではなく、IDの集合として理解しています。なので、闇雲に圧縮すると、似た言葉が全く別の物として扱われ、学習効率が落ちてしまいます。<br>
+            ・つまり、処理の効率と理解のしやすさはトレードオフの関係にあるわけです。
         </div>
     </div>
 
@@ -428,7 +464,7 @@
     <div class="slide">
         <div class="slide-header">
             <h2>3. PFNのアプローチ：形態素解析による調整</h2>
-            <span class="page-num">03 / 14</span>
+            <span class="page-num">04 / 15</span>
         </div>
 
         <div class="two-col">
@@ -464,7 +500,7 @@
     <div class="slide">
         <div class="slide-header">
             <h2>4. 既存アプローチに残る「3つの壁」</h2>
-            <span class="page-num">04 / 14</span>
+            <span class="page-num">05 / 15</span>
         </div>
         
         <p>形態素解析ベースの手法には、運用・拡張における重大な課題がある。</p>
@@ -488,7 +524,10 @@
             <strong>【課題提起: 2分】</strong><br>
             ・しかし、この手法には運用上の壁があります。<br>
             ・新語への対応、計算コスト、そして何より「言語ごとにエンジンを用意する」という手間です。<br>
-            ・世界中の言語に対応しようとした時、これでは破綻します。
+            ・世界中の言語に対応しようとした時、これでは破綻します。<br>
+            ・特に当初はPFNのやり方を真似しようとしましたが、自然言語処理が盛んでない言語では形態素解析器が存在しないか、精度が低くて話になりませんでした。<br>
+            ・また、各言語ごとの形態素解析を一つのドキュメントで全て実行する必要もあり、前処理の速度も課題になりました。<br>
+            ・例えば、Plamo2も英語と日本語に対しては非常に強いですが、アジア圏でも韓国語や中国語はトークンがイマイチでした。
         </div>
     </div>
 
@@ -496,7 +535,7 @@
     <div class="slide">
         <div class="slide-header">
             <h2>5. 別の道：Meta BLTの試みと課題</h2>
-            <span class="page-num">05 / 14</span>
+            <span class="page-num">06 / 15</span>
         </div>
 
         <h3>Meta BLT (Byte Latent Transformer)</h3>
@@ -524,9 +563,10 @@
 
         <div class="speaker-notes">
             <strong>【BLTの深掘り: 2分】</strong><br>
-            ・MetaのBLTも有力な候補ですが、ここにも罠があります。<br>
-            ・特に「パッチサイズ」の問題です。「何文字まとめるか」を人間が決める必要があります。<br>
-            ・英語と日本語では情報の密度が違うため、固定長で切るとどちらかが犠牲になります。
+            ・近しい取り組みとして、MetaのBLTについても実験を行いましたが、ココにも罠がありました。<br>
+            ・特に「パッチサイズ」の問題です。BLTはハイパーパラメータで、「何文字まとめるか」を人間が決める必要があります。<br>
+            ・英語と日本語では情報の密度が違うため、固定長で切るとどちらかが犠牲になります。<br>
+            ・あと、バイトベースなのでASCII、つまり英語に有利で、マルチバイト文字には不利だったことも課題でした。
         </div>
     </div>
 
@@ -534,7 +574,7 @@
     <div class="slide">
         <div class="slide-header">
             <h2>6. CLTの全体アーキテクチャ</h2>
-            <span class="page-num">06 / 14</span>
+            <span class="page-num">07 / 15</span>
         </div>
         
         <p>これらの課題を解決するために考案したのが、<br>
@@ -584,9 +624,10 @@
         <div class="speaker-notes">
             <strong>【CLTアーキテクチャ説明: 2分】</strong><br>
             ・BLTの課題を受けて設計したのが、このCLTです。<br>
-            ・まず入力をUnicodeで分解し、バイアスを消します。<br>
-            ・次に、最も重要な「CIF」というモジュールを通します。<br>
-            ・ここで動的に情報を圧縮し、「概念（Latent）」を作ってからLLMに渡す、というパイプラインになっています。
+            ・まず入力をUTF-32のUnicodeで分解し、ASCIIバイアスを消します。<br>
+            ・次に、BLTでの課題としてあった、「パッチサイズ」の問題を取り除くために、「CIF」というモジュールを通します。<br>
+            ・ここで動的に情報を圧縮し、「概念（Latent）」を作ってからLLMに渡す、というパイプライン構成にしました。<br>
+            ・こうすることで、多言語に対しても柔軟に対応できるようになり、更に一度概念化することで、CLTとLLMを分離出来るようにしようと考えて実験を行いました。
         </div>
     </div>
 
@@ -594,7 +635,7 @@
     <div class="slide">
         <div class="slide-header">
             <h2>7. 技術詳細：動的な区切り (CIF)</h2>
-            <span class="page-num">07 / 14</span>
+            <span class="page-num">08 / 15</span>
         </div>
         
         <p>CLTの核となる技術、<strong>Continuous Integrate-and-Fire (CIF)</strong> の仕組み。</p>
@@ -636,10 +677,12 @@
 
         <div class="speaker-notes">
             <strong>【CIFの解説: 2分】</strong><br>
-            ・CIFは「コップに水を溜める」ようなものです。<br>
+            ・唐突にCIFという言葉が出てきましたが、これは音声認識のSpeech-transformerなどでよく使われている技術で、可変長の情報を扱うためのメカニズムです。<br>
+            ・CIFを簡単に説明すると、「コップに水を溜める」ようなものだと言えて、<br>
             ・文字を読んでいって、「まだ意味が続くな」と思ったら水を溜める。<br>
-            ・予測困難な箇所（意味の切れ目）で水が溢れ、そこで区切ります。<br>
-            ・これにより、固定長ではなく、情報の密度に応じた「人間らしい」区切りが可能になります。
+            ・予測困難な箇所、例えば意味の切れ目などで水が溢れ、そこで区切ります。<br>
+            ・これにより、固定長ではなく、情報の密度に応じた「人間らしい」区切りが可能になる、というわけです。<br>
+            ・こうすることで、BLTの課題であった「パッチサイズ」を人間が決める必要が無くなるし、単語ごとの情報密度に応じた区切りが出来るようになると考えて導入しました。
         </div>
     </div>
 
@@ -647,7 +690,7 @@
     <div class="slide">
         <div class="slide-header">
             <h2>8. 検証結果：フルCLTの限界</h2>
-            <span class="page-num">08 / 14</span>
+            <span class="page-num">09 / 15</span>
         </div>
         
         <h3>検証したフルアーキテクチャ</h3>
@@ -674,16 +717,22 @@
         </div>
         <div class="speaker-notes">
             <strong>【失敗談: 1分】</strong><br>
-            ・理想的なアーキテクチャを組んでみましたが、学習コストの壁にぶつかりました。<br>
-            ・「動的に変わる区切り」を予測し続けるのは、LLMにとって荷が重すぎました。
+            ・理想的なアーキテクチャが組めたと思ってワクワクしながら実験を開始したら、一応試み自体は成功しました。<br>
+            ・確かに、CIFもEncoderも期待通りに動いて、Unicodeから「概念」を生成し、LLMで推論することが出来ました。<br>
+            ・これが行えることで、いわゆるストロベリー問題もBLT同様に対応出来ましたし、推論コストもトークンベースと比べても大差が無く、モデルとしては成功でした。<br>
+            ・ただ、学習コストが異常なまでに高く、数十GB程度の小規模なデータセットでも、<br>
+             Prior Modelの学習が非常に不安定で、推定で従来の1000倍以上の学習コストがかかることが発覚しました。<br>
+            ・人間の脳みたいに文脈も一切無い「概念」を元に予測し続けるのは、LLMにとって荷が重すぎました。<br>
+            ・ちなみに余談ですが、一般的にLLMで学習初期にある「単純に同じトークンを繰り返す」のではなく、<br>
+              「似た文字の言葉をどんどん繋げていく言葉遊び」みたいなことが自然に発生したのがかなり面白かったです。
         </div>
     </div>
 
     <!-- Slide 10: The Pivot -->
     <div class="slide">
         <div class="slide-header">
-            <h2>9. 発想の転換 (The Pivot)</h2>
-            <span class="page-num">09 / 14</span>
+            <h2>9. 発想の転換</h2>
+            <span class="page-num">10 / 15</span>
         </div>
         <div style="text-align: center; margin-top: 2rem;">
             <p style="font-size: 2rem; color: #ef4444; text-decoration: line-through;">
@@ -703,8 +752,10 @@
 
         <div class="speaker-notes">
             <strong>【ピボット: 1分】</strong><br>
-            ・ここで発想を転換しました。「生成」はやめて、「区切り方」だけを拝借しようと。<br>
-            ・Encoderがエントロピーに基づいて切った結果は、人間が苦労して形態素解析で作っていたものと同じになるはずだ、という仮説です。
+            ・このままでは、理論上実現出来ることを証明しただけで到底実用化出来ないので、一度原点に立って一番優先すべきことを再整理しました。<br>
+            ・考えた結果浮かんだのが、「開発者のバイアスを排除し、データ駆動で理想的な区切りを見つける」という本来の目的に立ち返ることでした。<br>
+            ・つまり、このアーキテクチャ丸ごとでの「生成」はやめて、「区切り方」だけを拝借しようと。<br>
+            ・Encoderがエントロピーに基づいて切った結果は、人間が苦労して形態素解析で作っていたものと同じか、それよりも良くなるはずだ、という仮説です。
         </div>
     </div>
 
@@ -712,7 +763,7 @@
     <div class="slide">
         <div class="slide-header">
             <h2>10. 発見：Neural Vocab の品質</h2>
-            <span class="page-num">10 / 14</span>
+            <span class="page-num">11 / 15</span>
         </div>
         
         <div class="two-col">
@@ -744,9 +795,13 @@
         <div class="speaker-notes">
             <strong>【結果の強調: 2分】</strong><br>
             ・結果はご覧の通りです。<br>
-            ・CLTは教えられなくても、startとingを分けました。<br>
+            ・CLTは教師無しでも、startとingを分けました。<br>
             ・これはPFNが「新車」を分けたかった意図と完全に一致します。<br>
-            ・しかも、これを英語だけでなく全言語で自動的に行えるのです。
+            ・しかも、今回はPDCAの都合上英語メインのデータセットを使いましたが、これを英語だけでなく全言語で自動的に行えるのです。<br>
+            ・PFNはまとめ記事で使われている「名無しさん」を人間がフィルタリングして無意味な語彙が入らないようにしていましたが、
+              CLTはそんなことをしなくても自然に意味のある分割が実際に行えました。<br>
+            ・以上のことから、CLT Encoderが捉えている情報理論的な区切りは、人間が定義した形態素解析に非常に近く、形態素解析フリーな語彙生成器として機能することが分かりました。<br>
+            ・また、エントロピーモデルの作成はコストが非常に低いため、人間による膨大な手作業によるフィルタリング不要で、運用コストの大幅削減も期待できると考えています。
         </div>
     </div>
 
@@ -754,7 +809,7 @@
     <div class="slide">
         <div class="slide-header">
             <h2>11. 実装：エイホーコラシック法</h2>
-            <span class="page-num">11 / 14</span>
+            <span class="page-num">12 / 15</span>
         </div>
         
         <p>抽出された「Neural Vocab」をどう使うか？</p>
@@ -776,8 +831,9 @@
 
         <div class="speaker-notes">
             <strong>【実装詳細: 1分】</strong><br>
-            ・語彙を作った後、それをどう使うかも重要です。<br>
-            ・BPEで再学習させると元の木阿弥なので、エイホーコラシック法を使って、見つけた語彙をそのまま辞書として適用する実装にしました。
+            ・続いて、この語彙を実際にどう使うかも検討しました。<br>
+            ・この時点で語彙は既に出来上がっているので、あとはそれを使ってテキストをトークナイズするだけです。<br>
+            ・BPEで再学習させると元も子もないので、rustでエイホーコラシック法を使って、語彙データを辞書としてトークナイズする処理を実装して対応しました。
         </div>
     </div>
 
@@ -785,7 +841,7 @@
     <div class="slide">
         <div class="slide-header">
             <h2>12. アプローチの比較まとめ</h2>
-            <span class="page-num">12 / 14</span>
+            <span class="page-num">13 / 15</span>
         </div>
 
         <table class="comparison-table">
@@ -828,8 +884,8 @@
         <div class="speaker-notes">
             <strong>【総括: 2分】</strong><br>
             ・最後に比較です。<br>
-            ・PFNの手法は「正解」を持っていますが、コストが高い。<br>
-            ・CLTの手法は「データ」に従います。低コストで、あらゆる言語に適用可能です。
+            ・PFNの手法は長年培われた辞書による「正解」をベースとし、人間がフィルタしているので、新語への対応などコストが非常に高いですが、<br>
+            ・CLTの手法は「データ」にだけ従うので、とにかく大量のデータを食わせ続けるだけで、低コストで、あらゆる言語に適用可能だというのが、実験で確認出来ました。
         </div>
     </div>
 
@@ -837,7 +893,7 @@
     <div class="slide">
         <div class="slide-header">
             <h2>13. 結論と今後の展望</h2>
-            <span class="page-num">13 / 14</span>
+            <span class="page-num">14 / 15</span>
         </div>
         <ul>
             <li><strong>結論:</strong>
@@ -856,8 +912,10 @@
         </ul>
         <div class="speaker-notes">
             <strong>【結び: 1分】</strong><br>
-            ・この技術を使えば、リソースの少ない言語でも高品質なLLMが作れるようになります。<br>
-            ・真の多言語対応AIの実現に向け、研究を続けます。<br>
+            ・今回のまとめです。<br>
+            ・完全なEnd-to-Endモデルを作成するのは困難なため断念しましたが、<br>
+            ・この技術を使えば、開発者が言語ごとに調整することなく、高品質なLLMが作れるようになると考えています。<br>
+            ・全世界の情報に1秒未満でアクセスできる昨今、言葉の壁は重大な課題だと思っているので、真の多言語対応AIの実現に向け、これからも研究を続けていこうと思います。<br>
             ・ご清聴ありがとうございました。
         </div>
     </div>
@@ -872,7 +930,8 @@
 
 <!-- Navigation Controls -->
 <div class="progress-bar" id="progressBar"></div>
-<div class="controls">
+<div class="controls" id="controls">
+    <button class="btn" onclick="startSync()">Start Sync</button>
     <button class="btn" onclick="prevSlide()">← Prev</button>
     <button class="btn" onclick="nextSlide()">Next →</button>
 </div>
@@ -881,8 +940,16 @@
     let currentSlide = 0;
     const slides = document.querySelectorAll('.slide');
     const progressBar = document.getElementById('progressBar');
+    const isViewMode = new URLSearchParams(window.location.search).has('view');
+    const syncChannel = new BroadcastChannel('slide-sync');
 
-    function showSlide(index) {
+    // View mode: hide controls and speaker notes
+    if (isViewMode) {
+        document.getElementById('controls').style.display = 'none';
+        document.querySelectorAll('.speaker-notes').forEach(el => el.style.display = 'none');
+    }
+
+    function showSlide(index, broadcast = true) {
         if (index < 0) index = 0;
         if (index >= slides.length) index = slides.length - 1;
 
@@ -897,6 +964,11 @@
 
         const progress = ((currentSlide + 1) / slides.length) * 100;
         progressBar.style.width = progress + '%';
+
+        // Broadcast slide change to synced tabs
+        if (broadcast && !isViewMode) {
+            syncChannel.postMessage({ slide: currentSlide });
+        }
     }
 
     function nextSlide() {
@@ -907,11 +979,30 @@
         showSlide(currentSlide - 1);
     }
 
+    function startSync() {
+        window.open(window.location.pathname + '?view', '_blank');
+    }
+
+    // Listen for sync messages
+    syncChannel.onmessage = (e) => {
+        if (e.data.slide !== undefined) {
+            showSlide(e.data.slide, false);
+        }
+    };
+
+    function toggleSpeakerNotes() {
+        document.querySelectorAll('.speaker-notes').forEach(el => {
+            el.classList.toggle('visible');
+        });
+    }
+
     document.addEventListener('keydown', (e) => {
         if (e.key === 'ArrowRight' || e.key === 'Space') {
             nextSlide();
         } else if (e.key === 'ArrowLeft') {
             prevSlide();
+        } else if (e.key === '.') {
+            toggleSpeakerNotes();
         }
     });
 
